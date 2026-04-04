@@ -1,10 +1,8 @@
-
 name: 京东云一代JDC-1
 
 on: 
   workflow_dispatch:
 
-#设置仓库的读写权限
 permissions:
   contents: write
 env:
@@ -210,14 +208,12 @@ jobs:
         ##包含网络 QoS 调度模块。约 0.2MB
         echo "CONFIG_FIRMWARE_INCLUDE_QOS=y" >> .config
 
-        ## 包含用于流量整形的 IMQ 模块（会略微降低性能）。约 0.02MB
-        echo "CONFIG_FIRMWARE_INCLUDE_IMQ=y" >> .config
-
         ##包含用于流量整形的 IFB 模块。约 0.03MB
         echo "CONFIG_FIRMWARE_INCLUDE_IFB=y" >> .config
 
         ##包含 IPSet 工具和内核模块。约 0.4MB
-        #echo "CONFIG_FIRMWARE_INCLUDE_IPSET=y" >> .config
+        # SS plus+ 需要 IPSet 支持，取消注释
+        echo "CONFIG_FIRMWARE_INCLUDE_IPSET=y" >> .config
 
         ##包含 NFSv3 服务器。约 0.6MB  已删除 /trunk/user/httpd/common.h
         echo "CONFIG_FIRMWARE_INCLUDE_NFSD=n" >> .config
@@ -323,7 +319,7 @@ jobs:
         echo "CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=n" >> .config
         
         ## OpenVPN。需要 IPv6 支持。openssl 约 1.2MB，openvpn 约 0.4MB
-        echo "CONFIG_FIRMWARE_INCLUDE_OPENVPN=y" >> .config
+        echo "CONFIG_FIRMWARE_INCLUDE_OPENVPN=n" >> .config
 
         ## 广东工业校园认证
         echo "CONFIG_FIRMWARE_INCLUDE_GDUT_DRCOM=n" >> .config
@@ -398,44 +394,48 @@ jobs:
         echo "CONFIG_FIRMWARE_INCLUDE_WIREGUARD=y" >> .config  ## wireguard 约1M
         echo "CONFIG_FIRMWARE_INCLUDE_TUNSAFE=y" >> .config ## tunsafe（wireguard的TCP方式）
         echo "CONFIG_FIRMWARE_INCLUDE_ZEROTIER=y" >> .config ## zerotier 约 20k
-        echo "CONFIG_FIRMWARE_INCLUDE_ALIDDNS=y" >> .config #阿里DDNS ~20k
+        echo "CONFIG_FIRMWARE_INCLUDE_ALIDDNS=n" >> .config #阿里DDNS ~20k
         echo "CONFIG_FIRMWARE_INCLUDE_DDNSTO=n" >> .config #ddnsto 约800k  已删除 /trunk/user/httpd/common.h
         echo "CONFIG_FIRMWARE_INCLUDE_TAILSCALE=y" >> .config #tailscale 约20k
-        echo "CONFIG_FIRMWARE_INCLUDE_NATPIERCE=y" >> .config #皎月连 约20k
-        echo "CONFIG_FIRMWARE_INCLUDE_VNTCLI=y" >> .config #vnt客户端 约80k
-        echo "CONFIG_FIRMWARE_INCLUDE_VNTS=y" >> .config #vnt服务端 约50k
-        echo "CONFIG_FIRMWARE_INCLUDE_CLOUDFLARED=y" >> .config #CF的隧道 约50k
-        echo "CONFIG_FIRMWARE_INCLUDE_LUCKY=y" >> .config #LUCKY 约50k
-        echo "CONFIG_FIRMWARE_INCLUDE_CLOUDFLARE=y" >> .config #CF-ddns 约50k
-        echo "CONFIG_FIRMWARE_INCLUDE_EASYTIER=y" >> .config #EasyTier 约50k
+        echo "CONFIG_FIRMWARE_INCLUDE_NATPIERCE=n" >> .config #皎月连 约20k
+        echo "CONFIG_FIRMWARE_INCLUDE_VNTCLI=n" >> .config #vnt客户端 约80k
+        echo "CONFIG_FIRMWARE_INCLUDE_VNTS=n" >> .config #vnt服务端 约50k
+        echo "CONFIG_FIRMWARE_INCLUDE_CLOUDFLARED=n" >> .config #CF的隧道 约50k
+        echo "CONFIG_FIRMWARE_INCLUDE_LUCKY=n" >> .config #LUCKY 约50k
+        echo "CONFIG_FIRMWARE_INCLUDE_CLOUDFLARE=n" >> .config #CF-ddns 约50k
+        echo "CONFIG_FIRMWARE_INCLUDE_EASYTIER=n" >> .config #EasyTier 约50k
         
-        echo "CONFIG_FIRMWARE_INCLUDE_ALIST=y" >> .config #ALIST文件列表 约80k
-        echo "CONFIG_FIRMWARE_INCLUDE_WXSEND=y" >> .config #微信推送 约50k
-        echo "CONFIG_FIRMWARE_INCLUDE_UUPLUGIN=y" >> .config #网易UU加速器 约50k
+        echo "CONFIG_FIRMWARE_INCLUDE_ALIST=n" >> .config #ALIST文件列表 约80k
+        echo "CONFIG_FIRMWARE_INCLUDE_WXSEND=n" >> .config #微信推送 约50k
+        echo "CONFIG_FIRMWARE_INCLUDE_UUPLUGIN=n" >> .config #网易UU加速器 约50k
         
         echo "CONFIG_FIRMWARE_INCLUDE_ALDRIVER=n" >> .config #阿里云盘 约50k
         sed -i 's/EVM_RESTART_ALDRIVER/EVM_RESTART_VIRTUALHERE/g' ./user/httpd/common.h
         echo "CONFIG_FIRMWARE_INCLUDE_VIRTUALHERE=y" >> .config #virtualhere 约30k 后期需要自行下载可执行文件 在trunk/user/virtualhere 
         
         echo "CONFIG_FIRMWARE_INCLUDE_WYY=n" >> .config #网易云解锁 约80k 已删除 /trunk/user/httpd/common.h
-        echo "CONFIG_FIRMWARE_INCLUDE_BAFA=y" >> .config #巴法云 约90k
-        echo "CONFIG_FIRMWARE_INCLUDE_CADDY=y" >> .config #在线文件管理服务不占空间(4.0kb左右)
+        echo "CONFIG_FIRMWARE_INCLUDE_BAFA=n" >> .config #巴法云 约90k
+        echo "CONFIG_FIRMWARE_INCLUDE_CADDY=n" >> .config #在线文件管理服务不占空间(4.0kb左右)
         echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNS=y" >> .config #smartdns
         echo "CONFIG_FIRMWARE_INCLUDE_ADGUARDHOME=y" >> .config #adguardhome不占空间(7.2kb左右)
         echo "CONFIG_FIRMWARE_INCLUDE_NETCAT=n" >> .config #nc工具
         echo "CONFIG_FIRMWARE_INCLUDE_MSD_LITE=y" >> .config #MSD_LITE工具
         
-        
-        #echo "CONFIG_FIRMWARE_INCLUDE_V2RAYA=n" >> .config #v2raya 已删除 /trunk/user/httpd/common.h
-        #echo "CONFIG_FIRMWARE_INCLUDE_NVPPROXY=n" >> .config #NVPPROXY 已删除 /trunk/user/httpd/common.h
-        ##科学上网## 已删除 /trunk/user/httpd/common.h
-        #echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=n" >> .config #SS plus+ 科学上网插件
-        #echo "CONFIG_FIRMWARE_INCLUDE_V2RAY=n" >> .config #无需集成会在线下载
-        #echo "CONFIG_FIRMWARE_INCLUDE_XRAY=n" >> .config #无需集成会在线下载
-        #echo "CONFIG_FIRMWARE_INCLUDE_TROJAN=n" >> .config #无需集成会在线下载
-        #echo "CONFIG_FIRMWARE_INCLUDE_SSOBFS=n" >> .config # simple-obfs混淆插件
+        # ========== SS plus+ 科学上网插件配置（仅 Shadowsocks，不集成 V2Ray/XRay 等大组件） ==========
+        # 启用 Shadowsocks 插件（SS plus+）
+        echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=y" >> .config
+        # 以下组件设为 n（运行时在线下载，节省固件空间）
+        echo "CONFIG_FIRMWARE_INCLUDE_V2RAY=n" >> .config
+        echo "CONFIG_FIRMWARE_INCLUDE_XRAY=n" >> .config
+        echo "CONFIG_FIRMWARE_INCLUDE_TROJAN=n" >> .config
+        echo "CONFIG_FIRMWARE_INCLUDE_SSOBFS=n" >> .config
+        # =============================================
         
         #########################################################################################
+        # 修复 httpd 中 Shadowsocks 事件宏名称错误（EVM_ 应为 EVT_）
+        sed -i 's/EVM_RESTART_SHADOWSOCKS/EVT_RESTART_SHADOWSOCKS/g' ./user/httpd/variables.c
+        sed -i 's/EVM_RESTART_SS_TUNNEL/EVT_RESTART_SS_TUNNEL/g' ./user/httpd/variables.c
+        
         sudo ./clear_tree
         sudo ./build_firmware_modify $TNAME 0
         sudo mv -f images/*.trx /opt/images/
