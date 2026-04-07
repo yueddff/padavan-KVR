@@ -206,10 +206,10 @@ jobs:
         echo "CONFIG_FIRMWARE_INCLUDE_XFRM=y" >> .config
 
         ##包含网络 QoS 调度模块。约 0.2MB
-        echo "CONFIG_FIRMWARE_INCLUDE_QOS=n" >> .config
+        echo "CONFIG_FIRMWARE_INCLUDE_QOS=y" >> .config
 
         ##包含用于流量整形的 IFB 模块。约 0.03MB
-        echo "CONFIG_FIRMWARE_INCLUDE_IFB=n >> .config
+        echo "CONFIG_FIRMWARE_INCLUDE_IFB=y" >> .config
 
         ##包含 IPSet 工具和内核模块。约 0.4MB
         # SS plus+ 需要 IPSet 支持，取消注释
