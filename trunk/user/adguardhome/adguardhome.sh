@@ -131,12 +131,12 @@ find_bin() {
     fi
 }
 
-# 检查二进制是否有效
+# ========== 检查二进制是否有效（使用 --help 代替 -h）==========
 is_valid_binary() {
-    [ -f "$1" ] && [ -x "$1" ] && "$1" -h >/dev/null 2>&1 && [ $? -eq 0 ]
+    [ -f "$1" ] && [ -x "$1" ] && "$1" --help >/dev/null 2>&1 && [ $? -eq 0 ]
 }
 
-# ========== 下载 AdGuardHome（固定链接）==========
+# ========== 下载 AdGuardHome（固定链接 + 自动切换软/硬浮点）==========
 dl_adg() {
     find_bin
     if is_valid_binary "$SVC_PATH"; then
@@ -146,64 +146,58 @@ dl_adg() {
 
     logger -t "【AdGuardHome】" "找不到有效的 $SVC_PATH ，开始下载 AdGuardHome 程序"
     
-    # 固定下载链接（v0.107.54  mipsle softfloat）
-    download_url="https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.54/AdGuardHome_linux_mipsle_softfloat.tar.gz"
+    tag="v0.107.54"
+    # 尝试顺序：软浮点 -> 硬浮点
+    versions="linux_mipsle_softfloat linux_mipsle"
     
     adg_path=$(dirname "$SVC_PATH")
     [ ! -d "$adg_path" ] && mkdir -p "$adg_path"
     
-    tmp_dir="/tmp/AdGuardHome_download"
-    rm -rf "$tmp_dir"
-    mkdir -p "$tmp_dir"
-    cd "$tmp_dir" || return 1
-    
-    logger -t "【AdGuardHome】" "下载地址: ${download_url}"
     success=0
-    for proxy in $github_proxys ; do
-        logger -t "【AdGuardHome】" "尝试从 ${proxy}${download_url} 下载"
-        rm -f "AdGuardHome.tar.gz"
-        curl -Lkso "AdGuardHome.tar.gz" "${proxy}${download_url}" 2>/dev/null || wget --no-check-certificate -q -O "AdGuardHome.tar.gz" "${proxy}${download_url}" 2>/dev/null
-        if [ "$?" = 0 ] && [ -s "AdGuardHome.tar.gz" ]; then
-            # 解压到临时子目录（兼容旧版 tar）
-            mkdir -p extracted
-            cd extracted
-            tar -xzvf ../AdGuardHome.tar.gz >/dev/null 2>&1
-            if [ $? -eq 0 ]; then
-                # 查找解压出的 AdGuardHome 可执行文件
-                find . -name "AdGuardHome" -type f | while read -r bin; do
-                    if [ -f "$bin" ] && ( [ -x "$bin" ] || chmod +x "$bin" ); then
-                        cp "$bin" "$SVC_PATH"
-                        break
-                    fi
-                done
-                cd ..
-                if [ -f "$SVC_PATH" ]; then
-                    chmod +x "$SVC_PATH"
-                    if is_valid_binary "$SVC_PATH"; then
-                        logger -t "【AdGuardHome】" "下载并解压成功: $SVC_PATH"
-                        success=1
-                        break
+    for version in $versions; do
+        download_url="https://github.com/AdguardTeam/AdGuardHome/releases/download/${tag}/AdGuardHome_${version}.tar.gz"
+        tmp_dir="/tmp/AdGuardHome_download_${version}"
+        rm -rf "$tmp_dir"
+        mkdir -p "$tmp_dir"
+        cd "$tmp_dir" || continue
+        
+        logger -t "【AdGuardHome】" "尝试下载版本: ${version}"
+        for proxy in $github_proxys ; do
+            logger -t "【AdGuardHome】" "从 ${proxy}${download_url} 下载"
+            rm -f "AdGuardHome.tar.gz"
+            curl -Lkso "AdGuardHome.tar.gz" "${proxy}${download_url}" 2>/dev/null || wget --no-check-certificate -q -O "AdGuardHome.tar.gz" "${proxy}${download_url}" 2>/dev/null
+            if [ "$?" = 0 ] && [ -s "AdGuardHome.tar.gz" ]; then
+                tar -xzvf "AdGuardHome.tar.gz" >/dev/null 2>&1
+                if [ $? -eq 0 ]; then
+                    if [ -f "AdGuardHome/AdGuardHome" ]; then
+                        cp "AdGuardHome/AdGuardHome" "$SVC_PATH"
                     else
-                        logger -t "【AdGuardHome】" "下载的文件无法运行，可能架构不匹配"
-                        rm -f "$SVC_PATH"
+                        find . -maxdepth 1 -name "AdGuardHome" -type f -exec cp {} "$SVC_PATH" \;
+                    fi
+                    if [ -f "$SVC_PATH" ]; then
+                        chmod +x "$SVC_PATH"
+                        if is_valid_binary "$SVC_PATH"; then
+                            logger -t "【AdGuardHome】" "成功下载并解压: ${version}"
+                            success=1
+                            break 3
+                        else
+                            logger -t "【AdGuardHome】" "版本 ${version} 无法运行，尝试下一个"
+                            rm -f "$SVC_PATH"
+                        fi
                     fi
                 else
-                    logger -t "【AdGuardHome】" "解压后未找到 AdGuardHome 可执行文件"
+                    logger -t "【AdGuardHome】" "解压失败"
                 fi
             else
-                logger -t "【AdGuardHome】" "解压失败，可能文件损坏"
+                logger -t "【AdGuardHome】" "下载失败"
             fi
-        else
-            logger -t "【AdGuardHome】" "下载失败"
-        fi
-        cd "$tmp_dir"
-        rm -rf extracted
+        done
+        cd /tmp
+        rm -rf "$tmp_dir"
     done
     
-    cd /tmp
-    rm -rf "$tmp_dir"
     if [ $success -eq 0 ]; then
-        logger -t "【AdGuardHome】" "所有下载源均失败，请手动下载 ${download_url} 解压到 $SVC_PATH"
+        logger -t "【AdGuardHome】" "所有版本均失败，请手动下载适合你路由器的版本解压到 $SVC_PATH"
         return 1
     fi
     return 0
@@ -231,7 +225,6 @@ start_adg() {
     sed -Ei '/【AdGuardHome】|^$/d' /tmp/script/_opt_script_check
     
     find_bin
-    # 确保二进制有效，否则下载
     if ! is_valid_binary "$SVC_PATH"; then
         dl_adg
         if ! is_valid_binary "$SVC_PATH"; then
@@ -273,7 +266,6 @@ stop_adg() {
     del_dns
     clear_iptable
     logger -t "【AdGuardHome】" "关闭AdGuardHome"
-    # 杀掉自身其他实例
     if [ ! -z "$scriptname" ] ; then
         eval $(ps -w | grep "$scriptname" | grep -v $$ | grep -v grep | awk '{print "kill "$1";";}')
         eval $(ps -w | grep "$scriptname" | grep -v $$ | grep -v grep | awk '{print "kill -9 "$1";";}')
