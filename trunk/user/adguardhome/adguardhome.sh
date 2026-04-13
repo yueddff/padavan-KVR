@@ -116,38 +116,7 @@ adg_restart () {
     start_adg
 }
 
-# ========== 获取系统架构 ==========
-get_arch() {
-    arch=$(uname -m)
-    case "$arch" in
-        mips|mipsle)
-            # 判断是否支持软浮点
-            if [ -f /lib/libc.so.0 ] && grep -q "soft-float" /lib/libc.so.0 2>/dev/null; then
-                echo "linux_mipsle_softfloat"
-            else
-                echo "linux_mipsle"
-            fi
-            ;;
-        armv7l|armv6l)
-            echo "linux_armv7"
-            ;;
-        aarch64)
-            echo "linux_arm64"
-            ;;
-        x86_64)
-            echo "linux_amd64"
-            ;;
-        i*86)
-            echo "linux_386"
-            ;;
-        *)
-            logger -t "【AdGuardHome】" "未知架构: $arch，尝试使用 mipsle_softfloat"
-            echo "linux_mipsle_softfloat"
-            ;;
-    esac
-}
-
-# ========== 查找或下载二进制 ==========
+# ========== 查找二进制 ==========
 find_bin() {
     SVC_PATH="$(nvram get adg_bin)"
     dirs="/etc/storage/bin /tmp/AdGuardHome /usr/bin"
@@ -167,6 +136,7 @@ is_valid_binary() {
     [ -f "$1" ] && [ -x "$1" ] && "$1" -h >/dev/null 2>&1 && [ $? -eq 0 ]
 }
 
+# ========== 下载 AdGuardHome（固定链接）==========
 dl_adg() {
     find_bin
     if is_valid_binary "$SVC_PATH"; then
@@ -175,65 +145,68 @@ dl_adg() {
     fi
 
     logger -t "【AdGuardHome】" "找不到有效的 $SVC_PATH ，开始下载 AdGuardHome 程序"
-    get_tag
-    arch=$(get_arch)
-    filename="AdGuardHome_${arch}.tar.gz"
-    download_url="https://github.com/AdguardTeam/AdGuardHome/releases/download/${tag}/${filename}"
+    
+    # 固定下载链接（v0.107.54  mipsle softfloat）
+    download_url="https://github.com/AdguardTeam/AdGuardHome/releases/download/v0.107.54/AdGuardHome_linux_mipsle_softfloat.tar.gz"
     
     adg_path=$(dirname "$SVC_PATH")
     [ ! -d "$adg_path" ] && mkdir -p "$adg_path"
     
     tmp_dir="/tmp/AdGuardHome_download"
+    rm -rf "$tmp_dir"
     mkdir -p "$tmp_dir"
     cd "$tmp_dir" || return 1
     
-    logger -t "【AdGuardHome】" "下载 ${tag} 版本，架构: ${arch}"
+    logger -t "【AdGuardHome】" "下载地址: ${download_url}"
+    success=0
     for proxy in $github_proxys ; do
         logger -t "【AdGuardHome】" "尝试从 ${proxy}${download_url} 下载"
-        curl -Lkso "AdGuardHome.tar.gz" "${proxy}${download_url}" || wget --no-check-certificate -q -O "AdGuardHome.tar.gz" "${proxy}${download_url}"
+        rm -f "AdGuardHome.tar.gz"
+        curl -Lkso "AdGuardHome.tar.gz" "${proxy}${download_url}" 2>/dev/null || wget --no-check-certificate -q -O "AdGuardHome.tar.gz" "${proxy}${download_url}" 2>/dev/null
         if [ "$?" = 0 ] && [ -s "AdGuardHome.tar.gz" ]; then
-            # 解压，去除顶层目录
-            tar -xzvf "AdGuardHome.tar.gz" --strip-components=1 -C "$adg_path" >/dev/null 2>&1
+            # 解压到临时子目录（兼容旧版 tar）
+            mkdir -p extracted
+            cd extracted
+            tar -xzvf ../AdGuardHome.tar.gz >/dev/null 2>&1
             if [ $? -eq 0 ]; then
-                rm -f "AdGuardHome.tar.gz"
-                chmod +x "$SVC_PATH"
-                if is_valid_binary "$SVC_PATH"; then
-                    logger -t "【AdGuardHome】" "下载并解压成功: $SVC_PATH"
-                    # 清理多余文件
-                    rm -f "$adg_path"/{LICENSE.txt,README.md,CHANGELOG.md,AdGuardHome.sig}
-                    cd /tmp
-                    rm -rf "$tmp_dir"
-                    return 0
+                # 查找解压出的 AdGuardHome 可执行文件
+                find . -name "AdGuardHome" -type f | while read -r bin; do
+                    if [ -f "$bin" ] && ( [ -x "$bin" ] || chmod +x "$bin" ); then
+                        cp "$bin" "$SVC_PATH"
+                        break
+                    fi
+                done
+                cd ..
+                if [ -f "$SVC_PATH" ]; then
+                    chmod +x "$SVC_PATH"
+                    if is_valid_binary "$SVC_PATH"; then
+                        logger -t "【AdGuardHome】" "下载并解压成功: $SVC_PATH"
+                        success=1
+                        break
+                    else
+                        logger -t "【AdGuardHome】" "下载的文件无法运行，可能架构不匹配"
+                        rm -f "$SVC_PATH"
+                    fi
                 else
-                    logger -t "【AdGuardHome】" "下载的文件无法运行，可能架构不匹配"
-                    rm -f "$SVC_PATH"
+                    logger -t "【AdGuardHome】" "解压后未找到 AdGuardHome 可执行文件"
                 fi
             else
-                logger -t "【AdGuardHome】" "解压失败"
+                logger -t "【AdGuardHome】" "解压失败，可能文件损坏"
             fi
         else
             logger -t "【AdGuardHome】" "下载失败"
         fi
+        cd "$tmp_dir"
+        rm -rf extracted
     done
     
     cd /tmp
     rm -rf "$tmp_dir"
-    logger -t "【AdGuardHome】" "所有下载源均失败，请手动下载 ${download_url} 解压到 $SVC_PATH"
-    return 1
-}
-
-get_tag() {
-    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-    curltest=`which curl`
-    logger -t "【AdGuardHome】" "开始获取最新版本..."
-    if [ -z "$curltest" ] || [ ! -s "`which curl`" ] ; then
-        tag="$( wget --no-check-certificate -T 5 -t 3 --user-agent "$user_agent" --output-document=-  https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest 2>&1 | grep 'tag_name' | cut -d\" -f4 )"
-        [ -z "$tag" ] && tag="$( wget --no-check-certificate -T 5 -t 3 --user-agent "$user_agent" --quiet --output-document=-  https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest  2>&1 | grep 'tag_name' | cut -d\" -f4 )"
-    else
-        tag="$( curl -k --connect-timeout 3 --user-agent "$user_agent"  https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest 2>&1 | grep 'tag_name' | cut -d\" -f4 )"
-        [ -z "$tag" ] && tag="$( curl -Lk --connect-timeout 3 --user-agent "$user_agent" -s  https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest  2>&1 | grep 'tag_name' | cut -d\" -f4 )"
+    if [ $success -eq 0 ]; then
+        logger -t "【AdGuardHome】" "所有下载源均失败，请手动下载 ${download_url} 解压到 $SVC_PATH"
+        return 1
     fi
-    [ -z "$tag" ] && logger -t "【AdGuardHome】" "无法获取最新版本，使用默认版本 v0.107.54" && tag="v0.107.54"
+    return 0
 }
 
 github_proxys="$(nvram get github_proxy)"
