@@ -1135,7 +1135,7 @@ gen_ralink_config(int is_soc_ap, int is_aband, int disable_autoscan)
 	fprintf(fp, "RekeyInterval=%d\n", i_val);
 
 	//PMKCachePeriod
-	fprintf(fp, "PMKCachePeriod=%d\n", 10);
+	fprintf(fp, "PMKCachePeriod=%d\n", 1440);
 
 	//WPAPSK
 	fprintf(fp, "WPAPSK%d=%s\n", 1, nvram_wlan_get(is_aband, "wpa_psk"));
