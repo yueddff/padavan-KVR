@@ -213,7 +213,7 @@ BOOLEAN RTMPCheckUcast(
 						return TRUE;
 					}
 					}
-															
+																
 					pStaTmp += 4;
 					Count--;
 				}
@@ -456,7 +456,7 @@ BOOLEAN RTMPCheckAUTH(
     while (Count > 0)
     {
 		/* Skip OUI */
-		pTmp += 4;
+		pStaTmp += 4;
 		Count--;
 	}
 
@@ -607,7 +607,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pTmp += sizeof(USHORT);
+	pStaTmp += sizeof(USHORT);
 
 	/* check group cipher suite */
 	len += LEN_OUI_SUITE;
@@ -621,7 +621,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pTmp += LEN_OUI_SUITE;
+	pStaTmp += LEN_OUI_SUITE;
 
 	/* check pairwise cipher suite */
 	len += 2;
@@ -647,7 +647,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pTmp += sizeof(USHORT) + Count * LEN_OUI_SUITE;
+	pStaTmp += sizeof(USHORT) + Count * LEN_OUI_SUITE;
 
 	/* check akm suite */
 	len += 2;
@@ -672,7 +672,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pTmp += sizeof(USHORT) + Count * LEN_OUI_SUITE;
+	pStaTmp += sizeof(USHORT) + Count * LEN_OUI_SUITE;
 
 	/* check rsn capabilities */
 	len += 2;
@@ -686,7 +686,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pTmp += 2;
+	pStaTmp += 2;
 
 	/* check PMKID */
 	len += 2;
@@ -712,7 +712,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pTmp += 2 + Count * 16;
+	pStaTmp += 2 + Count * 16;
 
 
 #ifdef DOT11W_PMF_SUPPORT
@@ -728,7 +728,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pTmp += LEN_OUI_SUITE;
+	pStaTmp += LEN_OUI_SUITE;
 #endif
 
 	MTWF_LOG(DBG_CAT_SEC, DBG_SUBCAT_ALL, DBG_LVL_TRACE,
@@ -1549,4 +1549,3 @@ const CHAR* ether_sprintf(const UINT8 *mac)
 
 #ifdef APCLI_SUPPORT
 #endif/*APCLI_SUPPORT*/
-
