@@ -446,55 +446,38 @@ struct hostapd_wpa_psk {
 #define OID_802_11_ACL_BLK_REJCT_COUNT_STATICS			0x069b
 #endif/*ACL_BLK_COUNT_SUPPORT*/
 
+#define RT_OID_802_11_WNM_COMMAND			0x06A1
+#define OID_802_11_WNM_NOTIFICATION			0x06A2
+
 /*
-	The full range (1-4,095) of VLAN IDs must be supported by the 802.1Q
-	implementation.
-	VLAN ID 0 is reserved.
-*/
+ * 802.11k Radio Measurement / 802.11v BSS Transition / 802.11r FT
+ * relevant OIDs used by hostapd 2.10 on the OpenWrt side.
+ */
+#ifdef WNM_SUPPORT
+#define OID_WNM_NOTIFY						0x06A3
+#define OID_BSS_TRANSITION_QUERY			0x06A4
+#endif
 
-#define RT_VLAN_8023_HEADER_COPY(__pAd, __VLAN_VID, __VLAN_Priority,		\
-								__pHeader8023, __HdrLen, __pData, __TPID)	\
-{																			\
-	VLAN_8023_Header_Copy(__VLAN_VID, __VLAN_Priority,					\
-								__pHeader8023, __HdrLen, __pData,			\
-								__TPID);					\
-}
+#define MAX_PMKID_COUNT		32	/* 8->32: enlarge per-BSS PMKID cache (8 was too small when many
+				 * clients roamed across; combined with disabled reclaim in
+				 * RTMPMaintainPMKIDCache this keeps FT PMK-R0 entries alive
+				 * and avoids overwriting clients during seamless 802.11r roam) */
 
+typedef struct _AP_BSSID_INFO {
+	UCHAR MAC[MAC_ADDR_LEN];
+	UCHAR PMKID[16];
+	UCHAR PMK[32];
+	UINT32 RefreshTime;
+	UCHAR Valid;
+} AP_BSSID_INFO, *PAP_BSSID_INFO;
 
-#define RT_80211_TO_8023_PACKET(__pAd, __VLAN_VID, __VLAN_Priority,			\
-								__pRxBlk, __pHeader802_3,					\
-								_wdev_idx, __TPID)					\
-{																			\
-	wlan_802_11_to_802_3_packet(											\
-				get_netdev_from_bssid(__pAd, _wdev_idx),				\
-				__pRxBlk->OpMode,										\
-				__VLAN_VID, __VLAN_Priority,							\
-				__pRxBlk->pRxPacket, __pRxBlk->pData, __pRxBlk->DataSize,	\
-				__pHeader802_3, __TPID);					\
-}
+typedef struct _NDIS_AP_802_11_PMKID {
+	UINT32 BSSIDInfoCount;
+	AP_BSSID_INFO BSSIDInfo[MAX_PMKID_COUNT];
+} NDIS_AP_802_11_PMKID, *PNDIS_AP_802_11_PMKID;
 
-// TODO: shiang-usw, fix me for pEntry->apidx to func_tb_idx
-#define RTMP_L2_FRAME_TX_ACTION(__pAd, __ApIdx, __FrameBuf, __FrameLen)		\
-	RTMPL2FrameTxAction(__pAd, get_netdev_from_bssid(__pAd, __ApIdx),		\
-						announce_802_3_packet, __ApIdx, __FrameBuf, __FrameLen, __pAd->OpMode)
+#ifdef WH_EZ_SETUP
+#define OID_802_11_WNM_GET_MNG_FRAME			0x06A7
+#endif
 
-#define RTMP_UPDATE_OS_PACKET_INFO(__pAd, __pRxBlk, _wdev_idx)		\
-	RtmpOsPktInit(__pRxBlk->pRxPacket,									\
-					get_netdev_from_bssid(__pAd, _wdev_idx),			\
-					__pRxBlk->pData, __pRxBlk->DataSize);
-
-#ifdef SYSTEM_LOG_SUPPORT
-/*
-	RTMPSendWirelessEvent --> RtmpOsSendWirelessEvent --> RtmpDrvSendWirelessEvent
-*/
-#define RTMPSendWirelessEvent(__pAd, __Event_flag, __pAddr, _wdev_idx, __Rssi)	\
-	RtmpOsSendWirelessEvent(__pAd, __Event_flag, __pAddr, _wdev_idx, __Rssi,		\
-							RtmpDrvSendWirelessEvent);
-#else
-#define RTMPSendWirelessEvent(__pAd, __Event_flag, __pAddr, __BssIdx, __Rssi)
-#endif /* SYSTEM_LOG_SUPPORT */
-
-#define RTMP_OS_TASK_INIT(__pTask, __pTaskName, __pAd)		\
-	RtmpOSTaskInit(__pTask, __pTaskName, __pAd, &(__pAd)->RscTaskMemList, &(__pAd)->RscSemMemList);
-#define VALID_UCAST_ENTRY_WCID(_wcid)  (_wcid < MAX_LEN_OF_MAC_TABLE)
-#endif /* __RTMP_DEF_H__ */
+#endif /* _OID_H_ */
