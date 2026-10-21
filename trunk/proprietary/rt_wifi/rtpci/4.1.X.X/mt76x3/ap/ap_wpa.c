@@ -223,7 +223,7 @@ BOOLEAN RTMPCheckUcast(
     			while (Count > 0)
     			{
     				if (RTMPEqualMemory(pStaTmp , &pAd->ApCfg.MBSSID[apidx].RSN_IE[0][12], 4))
-		            	return TRUE;
+			            return TRUE;
 
 					pStaTmp += 4;
 					Count--;
@@ -456,7 +456,7 @@ BOOLEAN RTMPCheckAUTH(
     while (Count > 0)
     {
 		/* Skip OUI */
-		pStaTmp += 4;
+		pTmp += 4;
 		Count--;
 	}
 
@@ -607,7 +607,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pStaTmp += sizeof(USHORT);
+	pTmp += sizeof(USHORT);
 
 	/* check group cipher suite */
 	len += LEN_OUI_SUITE;
@@ -621,7 +621,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pStaTmp += LEN_OUI_SUITE;
+	pTmp += LEN_OUI_SUITE;
 
 	/* check pairwise cipher suite */
 	len += 2;
@@ -647,7 +647,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pStaTmp += sizeof(USHORT) + Count * LEN_OUI_SUITE;
+	pTmp += sizeof(USHORT) + Count * LEN_OUI_SUITE;
 
 	/* check akm suite */
 	len += 2;
@@ -672,7 +672,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pStaTmp += sizeof(USHORT) + Count * LEN_OUI_SUITE;
+	pTmp += sizeof(USHORT) + Count * LEN_OUI_SUITE;
 
 	/* check rsn capabilities */
 	len += 2;
@@ -686,7 +686,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pStaTmp += 2;
+	pTmp += 2;
 
 	/* check PMKID */
 	len += 2;
@@ -712,7 +712,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pStaTmp += 2 + Count * 16;
+	pTmp += 2 + Count * 16;
 
 
 #ifdef DOT11W_PMF_SUPPORT
@@ -728,7 +728,7 @@ BOOLEAN wpa_rsne_sanity(
 		return TRUE;
 	}
 
-	pStaTmp += LEN_OUI_SUITE;
+	pTmp += LEN_OUI_SUITE;
 #endif
 
 	MTWF_LOG(DBG_CAT_SEC, DBG_SUBCAT_ALL, DBG_LVL_TRACE,
@@ -1223,7 +1223,7 @@ VOID WpaSend(RTMP_ADAPTER *pAdapter, UCHAR *pPacket, ULONG Len)
                     if (pEntry->Sst == SST_ASSOC)
                     {
                         pEntry->WpaState = AS_INITPMK;
-						/* Only set the expire and counters */
+							/* Only set the expire and counters */
 	                    pEntry->ReTryCounter = PEER_MSG1_RETRY_TIMER_CTR;
 	                    WPAStart4WayHS(pAdapter, pEntry, PEER_MSG1_RETRY_EXEC_INTV);
                     }
@@ -1299,7 +1299,7 @@ UCHAR is_pmkid_cache_in_entry(
 VOID RTMPAddPMKIDCache(
 	IN  PRTMP_ADAPTER   		pAd,
 	IN	INT						apidx,
-	IN	PUCHAR				pAddr,
+	IN	PUCHAR					pAddr,
 	IN	UCHAR					*PMKID,
 	IN	UCHAR					*PMK
 #ifdef CONFIG_OWE_SUPPORT
@@ -1378,14 +1378,14 @@ VOID RTMPAddPMKIDCache(
 #endif
 				);
 		DBGPRINT(RT_DEBUG_TRACE, ("RTMPAddPMKIDCache add %02x:%02x:%02x:%02x:%02x:%02x cache(%ld) from IF(ra%d)\n", 
-           						PRINT_MAC(pAddr), idx, apidx));
+           					PRINT_MAC(pAddr), idx, apidx));
 	}
 }
 
 INT RTMPSearchPMKIDCache(
 	IN  PRTMP_ADAPTER   pAd,
 	IN	INT				apidx,
-	IN	PUCHAR		pAddr)
+	IN	PUCHAR			pAddr)
 {
 	INT	i = 0;
 	
@@ -1395,7 +1395,7 @@ INT RTMPSearchPMKIDCache(
 			&& MAC_ADDR_EQUAL(&pAd->ApCfg.MBSSID[apidx].PMKIDCache.BSSIDInfo[i].MAC, pAddr))
 		{
 			DBGPRINT(RT_DEBUG_TRACE, ("RTMPSearchPMKIDCache %02x:%02x:%02x:%02x:%02x:%02x cache(%d) from IF(ra%d)\n", 
-            						PRINT_MAC(pAddr), i, apidx));
+            					PRINT_MAC(pAddr), i, apidx));
 			break;
 		}
 	}
@@ -1437,10 +1437,17 @@ VOID RTMPMaintainPMKIDCache(
 			PAP_BSSID_INFO pBssInfo = &pMbss->PMKIDCache.BSSIDInfo[j];
 
 			NdisGetSystemUpTime(&Now);
+			(void)Now; /* keep Now referenced; reclaim disabled below */
 
-			if ((pBssInfo->Valid)
-				&& /*((Now - pBssInfo->RefreshTime) >= pMbss->PMKCachePeriod)*/
-				(RTMP_TIME_AFTER(Now, (pBssInfo->RefreshTime + pMbss->PMKCachePeriod))))
+			/* Disable PMKID cache auto-reclaim for 802.11r seamless roaming:
+			 * the period read here (pMbss->PMKCachePeriod) is NOT synced from the
+			 * .dat config (config writes wdev.SecConfig.PMKCachePeriod instead), so
+			 * entries get dropped every ~25-75min, breaking FT roam-back after long
+			 * idle on the neighbor AP. Keep entries to preserve the PMK-R0.
+			 * (When the cache is full, RTMPAddPMKIDCache still overwrites the oldest
+			 *  entry, so this does not leak beyond the cache size.)
+			 */
+			if (0)
 			{
 				RTMPDeletePMKIDCache(pAd, i, j);
 			}
