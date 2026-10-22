@@ -1,4 +1,4 @@
-/*
+﻿/*
  ***************************************************************************
  * Ralink Tech Inc.
  * 4F, No. 2 Technology 5th Rd.
@@ -782,7 +782,12 @@ VOID RTMPMaintainPMKIDCache(
 		if ((pBssInfo->Valid)
 			&& /*((Now - pBssInfo->RefreshTime) >= pMbss->PMKCachePeriod)*/
 			(RTMP_TIME_AFTER(Now, (pBssInfo->RefreshTime + pAd->ApCfg.MBSSID[pBssInfo->Mbssidx].PMKCachePeriod))))
-			RTMPDeletePMKIDCache(&pAd->ApCfg.PMKIDCache, pBssInfo->Mbssidx, i);
+		{
+			if (0) /* KVR fix: keep PMKID cache (no timeout reclaim) so client can FT-roam back */
+			{
+				RTMPDeletePMKIDCache(&pAd->ApCfg.PMKIDCache, pBssInfo->Mbssidx, i);
+			}
+		}
 	}
 }
 
