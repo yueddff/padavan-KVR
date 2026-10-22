@@ -1,7 +1,9 @@
-name: 京东云一代JDC-1
+﻿name: 京东云一代JDC-1
 
 on: 
   workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: write
