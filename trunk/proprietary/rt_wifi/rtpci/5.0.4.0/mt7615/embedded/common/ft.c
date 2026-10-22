@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
  * Ralink Tech Inc.
  * 4F, No. 2 Technology 5th Rd.
  * Science-based Industrial Park
@@ -1711,6 +1711,51 @@ UINT16	FT_AuthReqRsnValidation(
 #endif /* FT_RSN_DEBUG */
 
 	{
+		/* KVR fix: derive PMK-R0/R1 locally using the STA's R0KH-ID and seed the
+		   R1KH table, so cross-vendor hostapd (Nwrt) clients can FT-roam back
+		   even though no R0KH->R1KH push path exists between the two firmwares. */
+		{
+			PUINT8 pAkm2 = NULL, pCiph2 = NULL;
+			UINT8 cnt2 = 0;
+			NdisMoveMemory(&sec_config->PMK, &sec_group->PMK, LEN_PMK);
+			FT_DerivePMKR0(sec_config->PMK, LEN_PMK,
+				(PUINT8)pAd->ApCfg.MBSSID[pEntry->func_tb_idx].Ssid,
+				pAd->ApCfg.MBSSID[pEntry->func_tb_idx].SsidLen,
+				pFtCfg->FtMdId,
+				pFtInfo_in->FtIeInfo.R0khId,
+				pFtInfo_in->FtIeInfo.R0khIdLen,
+				pEntry->Addr,
+				pEntry->FT_PMK_R0,
+				pEntry->FT_PMK_R0_NAME);
+			FT_DerivePMKR1(pEntry->FT_PMK_R0, pEntry->FT_PMK_R0_NAME,
+				wdev->bssid, pEntry->Addr,
+				pEntry->FT_PMK_R1, pEntry->FT_PMK_R1_NAME);
+			pAkm2 = WPA_ExtractSuiteFromRSNIE(pFtInfo_in->RSN_IE,
+				pFtInfo_in->RSNIE_Len, AKM_SUITE, &cnt2);
+			pCiph2 = WPA_ExtractSuiteFromRSNIE(pFtInfo_in->RSN_IE,
+				pFtInfo_in->RSNIE_Len, PAIRWISE_SUITE, &cnt2);
+			{
+				PFT_R1HK_ENTRY old = FT_R1khEntryTabLookup(pAd, pEntry->FT_PMK_R1_NAME);
+				if (old != NULL)
+					FT_R1khEntryDelete(pAd, old);
+			}
+			if (pCiph2 != NULL)
+				NdisMoveMemory(pEntry->FT_UCipher, pCiph2, 4);
+			if (pAkm2 != NULL)
+				NdisMoveMemory(pEntry->FT_Akm, pAkm2, 4);
+			FT_R1khEntryInsert(pAd,
+				pEntry->FT_PMK_R0_NAME,
+				pEntry->FT_PMK_R1_NAME,
+				pEntry->FT_PMK_R1,
+				pCiph2,
+				pAkm2,
+				(pAd->ApCfg.MBSSID[pEntry->func_tb_idx].PMKCachePeriod/OS_HZ),
+				20,
+				pFtInfo_in->FtIeInfo.R0khId,
+				pFtInfo_in->FtIeInfo.R0khIdLen,
+				pEntry->Addr);
+		}
+
 		/*
 			The R1KH of the target AP uses the value of PMKR0Name
 			and other information in the frame

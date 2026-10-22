@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
  * Ralink Tech Inc.
  * 4F, No. 2 Technology 5th Rd.
  * Science-based Industrial Park
@@ -1664,7 +1664,7 @@ UINT16	FT_AuthReqRsnValidation(
 #endif /* FT_RSN_DEBUG */
 
 #ifdef WH_EZ_SETUP
-	if (IS_EZ_SETUP_ENABLED(&pAd->ApCfg.MBSSID[pEntry->func_tb_idx].wdev) || ez_is_triband()){
+	if (1) { /* KVR fix: force local PMK-R0/R1 derivation to match cross-vendor hostapd FT */
 
 		os_move_mem(&sec_config->PMK, &sec_group->PMK,LEN_PMK);
 		
