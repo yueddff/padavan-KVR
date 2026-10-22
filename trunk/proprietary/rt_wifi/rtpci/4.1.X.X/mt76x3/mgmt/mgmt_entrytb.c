@@ -1,4 +1,4 @@
-/*
+﻿/*
  ***************************************************************************
  * Ralink Tech Inc.
  * 4F, No. 2 Technology 5th Rd.
@@ -991,18 +991,24 @@ BOOLEAN MacTableDeleteEntry(RTMP_ADAPTER *pAd, USHORT wcid, UCHAR *pAddr)
 					pAd->ApCfg.MBSSID[pEntry->func_tb_idx].wdev.IEEE8021X)
 					DOT1X_InternalCmdAction(pAd, pEntry, DOT1X_DISCONNECT_ENTRY);
 
-				/* Delete the PMK cache for this entry if it exists.*/
-				PmkCacheIdx = RTMPSearchPMKIDCache(pAd, pEntry->func_tb_idx, pEntry->Addr);
-				if (PmkCacheIdx != -1
+				/* KVR fix: do NOT delete PMKID cache on client entry removal,
+				 * so a client can FT-roam back after idle on the neighbor AP.
+				 * The cache is bounded (MAX_PMKID_COUNT); when full,
+				 * RTMPAddPMKIDCache overwrites the oldest entry. */
+				if (0)
+				{
+					PmkCacheIdx = RTMPSearchPMKIDCache(pAd, pEntry->func_tb_idx, pEntry->Addr);
+					if (PmkCacheIdx != -1
 #ifdef DOT11_SAE_SUPPORT
-					&& pEntry->AuthMode != Ndis802_11AuthModeWPA3PSK
+						&& pEntry->AuthMode != Ndis802_11AuthModeWPA3PSK
 #endif
 #ifdef CONFIG_OWE_SUPPORT
-					&& pEntry->AuthMode != Ndis802_11AuthModeOWE
+						&& pEntry->AuthMode != Ndis802_11AuthModeOWE
 #endif
-					)
-				{
-					RTMPDeletePMKIDCache(pAd, pEntry->func_tb_idx, PmkCacheIdx);
+						)
+					{
+						RTMPDeletePMKIDCache(pAd, pEntry->func_tb_idx, PmkCacheIdx);
+					}
 				}
 #endif /* DOT1X_SUPPORT */
 
